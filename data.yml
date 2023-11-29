@@ -1,8 +1,0 @@
-names:
-  0: N20DCCN094
-  1: N20DCCN114
-  2: N20DCCN133
-  3: N20dccn093
-path: '''C:\Users\baam0\OneDrive\Documents\MLproject\yolov8\data\data'''
-train: images/train
-val: images/val

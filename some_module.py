@@ -22,11 +22,11 @@ def move(folder, file_names):
 
 def write_config(df):
     data = {
-        'path': "'C:\\Users\\baam0\\OneDrive\\Documents\\MLproject\\yolov8\\data\\data'",
+        'path': 'C:\\Users\\baam0\\OneDrive\\Documents\\MLproject\\yolov8\\data\\data',
         'train': 'images/train',  # train images (relative to 'path')
         'val': 'images/val',
         'names': df.set_index('ID')['MSSV'].to_dict()
     }
 
-    with open('data.yml', 'w') as outfile:
+    with open('data.yaml', 'w') as outfile:
         yaml.dump(data, outfile, default_flow_style=False)

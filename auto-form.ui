@@ -26,19 +26,6 @@
     <string>Danh sách sinh viên có mặt</string>
    </property>
   </widget>
-  <widget class="QPushButton" name="btnSave_2">
-   <property name="geometry">
-    <rect>
-     <x>260</x>
-     <y>410</y>
-     <width>75</width>
-     <height>41</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Lưu</string>
-   </property>
-  </widget>
   <widget class="QPushButton" name="btnAttendance_2">
    <property name="geometry">
     <rect>

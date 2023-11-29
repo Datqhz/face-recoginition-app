@@ -2,6 +2,7 @@ import math
 import os
 import uuid
 import cv2
+import numpy as np
 import pandas as pd
 from PySide6.QtCore import QTimer, QSize
 from PySide6.QtGui import QImage, QPixmap
@@ -9,6 +10,7 @@ from PySide6.QtUiTools import QUiLoader
 import sys
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QTableWidget, QTableWidgetItem, QTableView, QHeaderView, \
     QWidget, QLabel, QProgressBar, QMessageBox, QTextEdit
+from ultralytics import YOLO
 
 from some_module import move_files, write_config
 
@@ -26,6 +28,8 @@ class AddForm(QWidget):
         self.window.webcamWidget.setLayout(self.main_layout)
         self.numImg = 0;
         self.isGet = False
+        self.model = YOLO('face.pt')
+        self.df = pd.read_csv('ds.csv')
         self.window.btnGetImage.clicked.connect(self.setup_camera)
         self.window.btnStop.clicked.connect(self.stop)
         self.window.btnGet.clicked.connect(self.collectImage)
@@ -43,7 +47,7 @@ class AddForm(QWidget):
         dlg = QMessageBox(self)
         dlg.setWindowTitle("Thông báo")
         dlg.setInformativeText("Tháo khẩu trang trước khi chụp (nếu có)")
-        dlg.setText("Vui lòng di chuyển khuôn mặt của bạn đến vị trí được đánh dấu.\nSau đó ấn 'Lấy' để tiến hành chụp ảnh.")
+        dlg.setText("Vui lòng di chuyển khuôn mặt của bạn nằm trong khung hình.\nSau đó ấn 'Lấy' để tiến hành chụp ảnh.")
         dlg.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
         button = dlg.exec_()
         if button == QMessageBox.Ok:
@@ -63,34 +67,39 @@ class AddForm(QWidget):
         """Read frame from camera and repaint QLabel widget.
             """
         _, frame = self.capture.read()
-        width = 640 * 0.39
-        height = 480 * 0.67
-        x_center = 640 * 0.5
-        y_center = 480 * 0.5
-        x = x_center - width / 2
-        y = y_center - height / 2
+        backup_frame = np.copy(frame)
         # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        if self.isGet and self.numImg < 30:
-            id = str(uuid.uuid1())
-            imgname = os.path.join(self.IMAGES_PATH, f'{id}.jpg')
-            cv2.imwrite(imgname, frame)
-            self.imageNames.append(id)
-            self.numImg += 1
-            self.window.progressBar.setValue(math.floor((self.numImg/30)*100))
-        elif self.isGet and self.numImg >= 30:
-            self.stop()
-            name = self.window.txtName.toPlainText()
-            ms = self.window.txtMS.toPlainText()
-            if not self.checkEmpty():
-                self.window.btnSave.setEnabled(True)
-        cv2.rectangle(frame, tuple((int(x), int(y))), tuple((int(x + width), int(y + height))), (255, 0, 0), 2)
+        results = self.model(frame)[0]
+        x1, y1, x2, y2 = [0, 0 , 0 ,0]
+        for result in results.boxes.data.tolist():
+            x1, y1, x2, y2, score, class_id = result
+            if score > 0.75:
+                cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
+                cv2.putText(frame, results.names[int(class_id)].upper(), (int(x1), int(y1 - 10)),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2, cv2.LINE_AA)
+                # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                if self.isGet and self.numImg < 30:
+                    id = str(uuid.uuid1())
+                    imgname = os.path.join(self.IMAGES_PATH, f'{id}.jpg')
+                    cv2.imwrite(imgname, backup_frame)
+                    txtname = os.path.join(self.LABELS_PATH, f'{id}.txt')
+                    with open(txtname, 'w') as file:
+                        file.write(f'{str(self.df.shape[0])} {str(round((x1 + (x2 - x1) / 2) / 640, 2))} {str(round((y1 + (y2 - y1) / 2) / 480, 2))} {str(round((x2 - x1) / 640, 2))} {str(round((y2 - y1) / 480, 2))}')
+                    self.imageNames.append(id)
+                    self.numImg += 1
+                    self.window.progressBar.setValue(math.floor((self.numImg/30)*100))
+            elif self.isGet and self.numImg >= 30:
+                self.stop()
+                name = self.window.txtName.toPlainText()
+                ms = self.window.txtMS.toPlainText()
+                if not self.checkEmpty():
+                    self.window.btnSave.setEnabled(True)
+
         image = QImage(frame, frame.shape[1], frame.shape[0],
                        frame.strides[0], QImage.Format_RGB888).rgbSwapped()
         self.image_label.setPixmap(QPixmap.fromImage(image))
-        s = " ddd"
-        s.isspace()
     def collectImage(self):
-        self.deleteImage()
+        self.resetData()
         self.isGet = True
         self.numImg = 0
         self.imageNames = []
@@ -108,11 +117,11 @@ class AddForm(QWidget):
         self.window.btnGetImage.setEnabled(True)
         print(self.imageNames)
 
-    def deleteImage(self):
+    def resetData(self):
         if len(self.imageNames)!=0:
             for img in self.imageNames:
-                os.remove(img)
-
+                os.remove(os.path.join('data', 'images', img+'.jpg'))
+                os.remove(os.path.join('data', 'labels', img + '.txt'))
     def checkEmpty(self):
         name = self.window.txtName.toPlainText()
         ms = self.window.txtMS.toPlainText()
@@ -125,21 +134,15 @@ class AddForm(QWidget):
             self.window.btnSave.setEnabled(True)
 
     def save(self):
-        df = pd.read_csv('ds.csv')
-        index = df.shape[0]
+        index = self.df.shape[0]
         name = self.window.txtName.toPlainText()
         ms = self.window.txtMS.toPlainText()
-        for i in self.imageNames:
-            txtname = os.path.join(self.LABELS_PATH, f'{i}.txt')
-            with open(txtname, 'w') as file:
-                file.write(f'{str(index)}: 0.5 0.5 0.39 0.67 ')
-
         move_files(self.imageNames)
         new_row = pd.DataFrame({'Họ tên': [name], 'MSSV': [ms], 'ID': [index]})
         # Concatenate the original DataFrame with the new row
-        df = pd.concat([df, new_row], ignore_index=True)
-        df.to_csv('ds.csv', index=False)
-        write_config(df)
+        self.df = pd.concat([self.df, new_row], ignore_index=True)
+        self.df.to_csv('ds.csv', index=False)
+        write_config(self.df)
         dlg = QMessageBox(self)
         dlg.setWindowTitle("Thông báo")
         dlg.setText(
