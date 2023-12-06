@@ -99,7 +99,8 @@ class AddForm(QWidget):
                        frame.strides[0], QImage.Format_RGB888).rgbSwapped()
         self.image_label.setPixmap(QPixmap.fromImage(image))
     def collectImage(self):
-        self.resetData()
+        if(len(os.listdir(os.path.join('data', 'images')))!=0):
+            self.resetData()
         self.isGet = True
         self.numImg = 0
         self.imageNames = []

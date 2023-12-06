@@ -1,11 +1,7 @@
 names:
   0: N20DCCN094
-  1: N20DCCN115
-  2: N20DCCN129
-  3: N20DCCN049
-  4: N20DCCN133
-  5: ddd
-  6: dddds
+  1: N20DCCN129
+  2: N20DCCN115
 path: C:\Users\baam0\OneDrive\Documents\MLproject\yolov8\data\data
 train: images/train
 val: images/val
