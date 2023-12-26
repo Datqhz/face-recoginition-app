@@ -4,6 +4,7 @@ import uuid
 import cv2
 import numpy as np
 import pandas as pd
+import yaml
 from PySide6.QtCore import QTimer, QSize
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtUiTools import QUiLoader
@@ -34,6 +35,7 @@ class AddForm(QWidget):
         self.window.btnStop.clicked.connect(self.stop)
         self.window.btnGet.clicked.connect(self.collectImage)
         self.window.btnSave.clicked.connect(self.save)
+        self.window.btnTrain.clicked.connect(self.train)
         self.IMAGES_PATH = os.path.join('data', 'images')
         self.LABELS_PATH = os.path.join('data', 'labels')
         self.imageNames = []
@@ -73,7 +75,7 @@ class AddForm(QWidget):
         x1, y1, x2, y2 = [0, 0 , 0 ,0]
         for result in results.boxes.data.tolist():
             x1, y1, x2, y2, score, class_id = result
-            if score > 0.75:
+            if score > 0.8:
                 cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
                 cv2.putText(frame, results.names[int(class_id)].upper(), (int(x1), int(y1 - 10)),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2, cv2.LINE_AA)
@@ -150,3 +152,32 @@ class AddForm(QWidget):
             "Lưu thành công")
         dlg.setStandardButtons(QMessageBox.Ok)
         dlg.exec_()
+    def train(self):
+        with open("data.yaml", 'r') as file:
+            yaml_data = yaml.safe_load(file)
+        with open("config.yaml", 'r') as file:
+            config_data = yaml.safe_load(file)
+        if(len(yaml_data['names'])>len(config_data['names'])):
+            dlg = QMessageBox(self)
+            dlg.setWindowTitle("Thông báo")
+            dlg.setText(
+                "Hiện đang có thông tin mới của "+str(len(yaml_data['names'])-len(config_data['names']))+" sinh viên./nBạn có muốn đào tạo lại model hay không?")
+            dlg.setStandardButtons(QMessageBox.Ok| QMessageBox.Cancel)
+            button = dlg.exec_()
+            if button == QMessageBox.Ok:
+                ms1 = QMessageBox(self)
+                ms1.setWindowTitle("Thông báo")
+                ms1.setText(
+                    "Hiện đang có thông tin mới của " + str(len(yaml_data['names']) - len(
+                        config_data['names'])) + " sinh viên. Bạn có muốn đào tạo lại model hay không?")
+                ms1.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+                btn = ms1.exec_()
+                if btn == QMessageBox.Ok:
+                    with open('config.yaml', 'w') as outfile:
+                        yaml.dump(yaml_data, outfile, default_flow_style=False)
+                        model = YOLO("yolov8m.pt")
+                        model.train(data="config.yaml", epochs=1)
+                        QMessageBox.information(self, "Thông báo", "Đào tạo lại mô hình thành công!")
+        else:
+            QMessageBox.information(self, "Thông báo", "Hiện tại vẫn chưa có thông tin sinh viên mới. Vui lòng thêm trước khi đào tạo.")
+

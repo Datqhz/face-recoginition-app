@@ -1,11 +1,13 @@
 from PySide6.QtUiTools import QUiLoader
 import sys
 from PySide6.QtWidgets import QApplication, QVBoxLayout, QTableWidget, QTableWidgetItem, QTableView, QHeaderView, \
-    QLabel, QWidget
+    QLabel, QWidget, QMessageBox
 from ultralytics import YOLO
 from webcam_widget import WebcamWidget
 from table_model import TableModel
 import pandas as pd
+from datetime import datetime
+
 
 
 class Attendance(QWidget):
@@ -13,14 +15,14 @@ class Attendance(QWidget):
         super().__init__()
         self.model = YOLO("best.pt")
         loader = QUiLoader()
-        self.window = loader.load('auto-form.ui', None)
+        self.window = loader.load('detect-ui.ui', None)
         self.window.setParent(self)
         self.people = pd.read_csv('ds.csv')
 
         self.present = pd.DataFrame({'Họ tên': [],
                                      'MSSV': [],
                                      'ID': []})
-        self.absent = self.people
+        self.absent = self.people[["Họ tên", "MSSV", "ID"]]
 
         self.isAttendance = []
 
@@ -47,7 +49,7 @@ class Attendance(QWidget):
         self.window.webcamWidget_2.setLayout(self.layout)
         self.window.btnAttendance_2.clicked.connect(self.detect)
         self.window.btnStop_2.clicked.connect(self.remove_widgets)
-
+        self.window.btnSave.clicked.connect(self.save_list)
     def detect(self):
         self.layout.addWidget(WebcamWidget(model=self.model, setData=self.loadList, setLabel=self.set_label))
 
@@ -71,10 +73,23 @@ class Attendance(QWidget):
                 text += s + ', '
 
         self.window.lblName_2.setText(text)
-
+    def save_list(self):
+        column_name = datetime.now().date().strftime('%d-%m-%Y')
+        self.people[column_name] = 0
+        self.people[column_name] = self.people["ID"].isin(pd.Series(self.isAttendance)).astype(int)
+        self.people.to_csv("ds.csv", index=False)
+        dlg = QMessageBox(self)
+        dlg.setWindowTitle("Thông báo")
+        dlg.setText(
+            "Lưu thông tin điểm danh thành công.")
+        dlg.setStandardButtons(QMessageBox.Ok)
+        dlg.exec_()
     def loadList(self, list):
         self.isAttendance = list
         self.absent = self.people[~self.people['ID'].isin(self.isAttendance)]
         self.tableModel.update_data(self.absent)
         self.present = self.people[self.people['ID'].isin(self.isAttendance)]
         self.tablePresentModel.update_data(self.present)
+        self.window.lblTotalPresent.setText(str(len(self.isAttendance)))
+        self.window.lblTotalAbsent.setText(str(len(self.absent)))
+
