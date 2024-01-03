@@ -15,7 +15,7 @@ class WebcamWidget(QWidget):
         self.main_layout = QVBoxLayout()
         self.main_layout.addWidget(self.image_label)
         self.setLayout(self.main_layout)
-        self.setup_camera()
+
 
     def execute_function(self, *args, **kwargs):
         return self.setData(*args, **kwargs)
@@ -42,14 +42,17 @@ class WebcamWidget(QWidget):
                 if score > 0.75:
                     cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 2)
                     cv2.putText(frame, results.names[int(class_id)].upper(), (int(x1), int(y1 - 10)),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2, cv2.LINE_AA)
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2, cv2.LINE_AA)
                     if class_id not in self.isAttendance:
                         self.isAttendance.append(class_id)
                         self.execute_function(self.isAttendance)
                     list.append(class_id)
                 self.execute_setLabel(list)
-
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            if not frame is None:
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             image = QImage(frame, frame.shape[1], frame.shape[0],
                            frame.strides[0], QImage.Format_RGB888)
             self.image_label.setPixmap(QPixmap.fromImage(image))
+    def stop(self):
+        self.timer.stop()
+        self.capture.release()

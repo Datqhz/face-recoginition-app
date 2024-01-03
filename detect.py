@@ -25,8 +25,9 @@ class Attendance(QWidget):
         self.absent = self.people[["Họ tên", "MSSV", "ID"]]
 
         self.isAttendance = []
-
+        self.webcam  = WebcamWidget(model=self.model, setData=self.loadList, setLabel=self.set_label)
         self.layout = QVBoxLayout()
+        self.layout.addWidget(self.webcam)
         self.tableModel = TableModel(self.absent)
         self.tableView = QTableView()
         self.tableView.setModel(self.tableModel)
@@ -51,16 +52,18 @@ class Attendance(QWidget):
         self.window.btnStop_2.clicked.connect(self.remove_widgets)
         self.window.btnSave.clicked.connect(self.save_list)
     def detect(self):
-        self.layout.addWidget(WebcamWidget(model=self.model, setData=self.loadList, setLabel=self.set_label))
+        self.webcam.setup_camera()
 
     def remove_widgets(self):
-        while self.layout.count():
-            item = self.layout.takeAt(0)
-            widget = item.widget()
-            self.isAttendance = widget.isAttendance
-            if widget:
-                widget.setParent(None)
-        print(self.isAttendance)
+        # while self.layout.count():
+        #     item = self.layout.takeAt(0)
+        #     widget = item.widget()
+        #     self.isAttendance = widget.isAttendance
+        #     if widget:
+        #         widget.setParent(None)
+        #         widget.destroy_widget()
+        # print(self.isAttendance)
+        self.webcam.stop()
         self.window.lblName_2.setText('')
 
     def set_label(self, list):
